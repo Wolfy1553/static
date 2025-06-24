@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Wolfy Coordinates Editor</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: auto;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+
+        canvas {
+            display: block;
+            background-color: white;
+            margin-left: 250px;
+            margin-top: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        #controls {
+            position: absolute;
+            left: 10px;
+            top: 50px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.15);
+            width: 200px;
+            max-height: 90vh;
+            overflow-y: auto;
+            z-index: 100;
+            transition: all 0.3s ease;
+        }
+
+        #controls.hidden {
+            transform: translateX(-100%);
+            opacity: 0;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .control-group:last-child {
+            border-bottom: none;
+        }
+
+        .control-group h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+            color: #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .control-row {
+            display: flex;
+            margin-bottom: 8px;
+            align-items: center;
+        }
+
+        .control-row label {
+            width: 30px;
+            font-size: 13px;
+            color: #666;
+            font-weight: bold;
+        }
+
+        .control-row input,
+        .control-row select {
+            flex: 1;
+            padding: 6px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .control-row input[type="number"] {
+            width: 80px;
+        }
+
+        button {
+            background: #4a6baf;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            margin-top: 5px;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #3a5a9f;
+        }
+
+        .decimal-control {
+            display: flex;
+            align-items: center;
+            margin-top: 5px;
+        }
+
+        .decimal-control label {
+            margin-right: 10px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .decimal-control select {
+            padding: 4px;
+            font-size: 12px;
+        }
+
+        #exportData {
+            background: #28a745;
+            width: 100%;
+            padding: 10px;
+            margin-top: 15px;
+        }
+
+        #exportData:hover {
+            background: #218838;
+        }
+
+        .image-selector {
+            margin-top: 10px;
+        }
+
+        .image-selector label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 13px;
+            color: #555;
+        }
+
+        .image-preview {
+            width: 100%;
+            height: 80px;
+            background-color: #eee;
+            margin-top: 5px;
+            background-size: contain;
+            background-position: center;
+            background-repeat: no-repeat;
+            border: 1px dashed #ccc;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input-wrapper input[type=file] {
+            font-size: 100px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-input-button {
+            background: #4a6baf;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            width: 100%;
+            text-align: center;
+            display: block;
+        }
+
+        .file-input-button:hover {
+            background: #3a5a9f;
+        }
+
+        .file-name {
+            font-size: 12px;
+            margin-top: 5px;
+            color: #666;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #toggleControls {
+            position: fixed;
+            left: 10px;
+            top: 10px;
+            z-index: 101;
+            background: #4a6baf;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        #fullscreenToggle {
+            position: fixed;
+            left: 10px;
+            top: 10px;
+            z-index: 101;
+            background: #4a6baf;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .dimension-control {
+            margin-top: 10px;
+        }
+
+        .dimension-control input {
+            width: 70px;
+            margin-right: 10px;
+        }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script> -->
+</head>
+
+<body>
+    <!-- <button id="toggleControls">Toggle Controls</button> -->
+    <button id="fullscreenToggle">Fullscreen</button>
+
+    <div id="controls">
+        <div class="control-group">
+            <h3>Image Selection</h3>
+            <div class="image-selector">
+                <label for="tileImageInput">Tile Image:</label>
+                <div class="file-input-wrapper">
+                    <button class="file-input-button">Choose Tile Image</button>
+                    <input type="file" id="tileImageInput" accept="image/*">
+                </div>
+                <div class="file-name" id="tileFileName">No file selected</div>
+                <div class="image-preview" id="tileImagePreview"></div>
+
+                <label for="masterImageInput" style="margin-top: 15px;">Master Image:</label>
+                <div class="file-input-wrapper">
+                    <button class="file-input-button">Choose Master Image</button>
+                    <input type="file" id="masterImageInput" accept="image/*">
+                </div>
+                <div class="file-name" id="masterFileName">No file selected</div>
+                <div class="image-preview" id="masterImagePreview"></div>
+
+                <button id="updateImages" style="margin-top: 15px;">Update Images</button>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <h3>Grid Dimensions</h3>
+            <div class="dimension-control">
+                <div class="control-row">
+                    <label>Width:</label>
+                    <input type="number" id="gridWidth" value="3000" step="1" style="width: 50px; margin-left: 15px;">
+                </div>
+                <div class="control-row">
+                    <label>Height:</label>
+                    <input type="number" id="gridHeight" value="2400" step="1" style="width: 50px; margin-left: 15px;">
+                </div>
+                <button id="updateDimensions" style="margin-top: 10px;">Update Dimensions</button>
+            </div>
+        </div>
+        <div class="control-group">
+            <h3>Decimal Precision</h3>
+            <div class="control-row">
+                <label>Digits:</label>
+                <input type="number" id="decimalPrecision" min="1" max="10" value="4" step="1"
+                    style="width: 50px; margin-left: 15px;">
+                <!--  <select id="decimalPrecision">
+                    <option value="2">2</option>
+                    <option value="4" selected>4</option>
+                    <option value="6">6</option>
+                    <option value="8">8</option>
+                </select> -->
+            </div>
+        </div>
+        <div class="control-group">
+            <h3>Position</h3>
+            <div class="control-row">
+                <label>X:</label>
+                <input type="number" id="posX" value="0" step="0.0001">
+            </div>
+            <div class="control-row">
+                <label>Y:</label>
+                <input type="number" id="posY" value="0" step="0.0001">
+            </div>
+            <div class="control-row">
+                <label>Z:</label>
+                <input type="number" id="posZ" value="0" step="0.0001">
+            </div>
+        </div>
+
+        <div class="control-group">
+            <h3>Rotation</h3>
+            <div class="control-row">
+                <label>X:</label>
+                <input type="number" id="rotX" value="0" step="0.0001">
+            </div>
+            <div class="control-row">
+                <label>Y:</label>
+                <input type="number" id="rotY" value="0" step="0.0001">
+            </div>
+            <div class="control-row">
+                <label>Z:</label>
+                <input type="number" id="rotZ" value="0" step="0.0001">
+            </div>
+        </div>
+
+        <div class="control-group">
+            <h3>Scale</h3>
+            <div class="control-row">
+                <label>X:</label>
+                <input type="number" id="scaleX" value="1" step="0.0001">
+            </div>
+            <div class="control-row">
+                <label>Y:</label>
+                <input type="number" id="scaleY" value="1" step="0.0001">
+            </div>
+            <div class="control-row">
+                <label>Z:</label>
+                <input type="number" id="scaleZ" value="1" step="0.0001">
+            </div>
+        </div>
+
+        <div class="control-group">
+            <h3>Opacity</h3>
+            <div class="control-row">
+                <label>Value:</label>
+                <!-- <input type="range" id="opacityRange" value="100" min="0" max="100" step="1"> -->
+                <input type="number" id="opacity" value="1" min="0" max="1" step="0.01"
+                    style="width: 60px; margin-left: 10px;">
+            </div>
+        </div>
+
+        <button id="exportData">Export Coordinates</button>
+    </div>
+    <script>
+        $(document).ready(function () {
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xffffff);
+
+            const Width = 4000;
+            const Height = 2667;
+            const aspectRatio = Width / Height;
+            const canvasWidth = window.innerWidth * 0.8;
+            const canvasHeight = canvasWidth / aspectRatio;
+
+            const camera = new THREE.PerspectiveCamera(75, canvasWidth / canvasHeight, 0.1, 1000);
+            camera.position.z = 5;
+
+            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setClearColor(0xffffff, 0);
+            renderer.setSize(canvasWidth, canvasHeight);
+            document.body.appendChild(renderer.domElement);
+
+            let tileMesh = null;
+            let textureLayer = null;
+            let decimalPrecision = 4;
+            let tileImageFile = null;
+            let masterImageFile = null;
+
+            const position = new THREE.Vector3(0, 0, 0);
+            const rotation = new THREE.Euler(0, 0, 0);
+            const scale = new THREE.Vector3(1, 1, 1);
+            let opacity = 1;
+
+            function loadTileImageAsPlane(image) {
+                if (tileMesh) scene.remove(tileMesh);
+
+                const texture = new THREE.Texture(image);
+                texture.colorSpace = THREE.SRGBColorSpace;
+                texture.generateMipmaps = true;
+                texture.needsUpdate = true;
+                texture.minFilter = THREE.NearestFilter;
+                texture.magFilter = THREE.NearestFilter;
+
+                const visibleHeight = 2 * Math.tan((camera.fov * Math.PI) / 360) * camera.position.z;
+                const visibleWidth = visibleHeight * camera.aspect;
+
+                const geometry = new THREE.PlaneGeometry(visibleWidth, visibleHeight);
+                const material = new THREE.MeshBasicMaterial({
+                    map: texture,
+                    transparent: true,
+                    opacity,
+                    side: THREE.DoubleSide,
+                });
+
+                tileMesh = new THREE.Mesh(geometry, material);
+                applyTransformations();
+                scene.add(tileMesh);
+            }
+
+            function updateMasterImage(imageData) {
+                if (textureLayer) scene.remove(textureLayer);
+
+                const texture = new THREE.Texture(imageData);
+                texture.colorSpace = THREE.SRGBColorSpace;
+                texture.needsUpdate = true;
+                const visibleHeight = 2 * Math.tan((camera.fov * Math.PI) / 360) * camera.position.z;
+                const visibleWidth = visibleHeight * camera.aspect;
+
+                const textureGeometry = new THREE.PlaneGeometry(visibleWidth, visibleHeight);
+                const textureMaterial = new THREE.MeshBasicMaterial({
+                    map: texture,
+                    transparent: true,
+                    opacity,
+                    side: THREE.DoubleSide,
+                });
+
+                textureLayer = new THREE.Mesh(textureGeometry, textureMaterial);
+                scene.add(textureLayer);
+            }
+
+            function applyTransformations() {
+                if (tileMesh) {
+                    tileMesh.position.copy(position);
+                    tileMesh.rotation.copy(rotation);
+                    tileMesh.scale.copy(scale);
+                }
+                if (textureLayer) {
+                    textureLayer.material.opacity = opacity;
+                }
+            }
+
+            function setTransformInputs(position, rotation, scale, opacity) {
+                $('#posX').val(position.x.toFixed(decimalPrecision));
+                $('#posY').val(position.y.toFixed(decimalPrecision));
+                $('#posZ').val(position.z.toFixed(decimalPrecision));
+                $('#rotX').val(rotation.x.toFixed(decimalPrecision));
+                $('#rotY').val(rotation.y.toFixed(decimalPrecision));
+                $('#rotZ').val(rotation.z.toFixed(decimalPrecision));
+                $('#scaleX').val(scale.x.toFixed(decimalPrecision));
+                $('#scaleY').val(scale.y.toFixed(decimalPrecision));
+                $('#scaleZ').val(scale.z.toFixed(decimalPrecision));
+                $('#opacity').val(opacity.toFixed(2));
+            }
+
+            function setupControlListeners() {
+                $('#posX, #posY, #posZ, #rotX, #rotY, #rotZ, #scaleX, #scaleY, #scaleZ').on('input change', function () {
+                    position.x = parseFloat($('#posX').val()) || 0;
+                    position.y = parseFloat($('#posY').val()) || 0;
+                    position.z = parseFloat($('#posZ').val()) || 0;
+
+                    rotation.x = parseFloat($('#rotX').val()) || 0;
+                    rotation.y = parseFloat($('#rotY').val()) || 0;
+                    rotation.z = parseFloat($('#rotZ').val()) || 0;
+
+                    scale.x = parseFloat($('#scaleX').val()) || 1;
+                    scale.y = parseFloat($('#scaleY').val()) || 1;
+                    scale.z = parseFloat($('#scaleZ').val()) || 1;
+
+                    applyTransformations();
+                });
+
+                $('#opacity').on('input change', function () {
+                    opacity = parseFloat($(this).val()) || 1;
+                    opacity = Math.max(0, Math.min(1, opacity));
+                    applyTransformations();
+                });
+
+                $('#tileImageInput').on('change', function (e) {
+                    const file = e.target.files[0];
+                    if (file) {
+                        tileImageFile = file;
+                        $('#tileFileName').text(file.name);
+                        const reader = new FileReader();
+                        reader.onload = function (event) {
+                            $('#tileImagePreview').css('background-image', 'url(' + event.target.result + ')');
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+
+                $('#masterImageInput').on('change', function (e) {
+                    const file = e.target.files[0];
+                    if (file) {
+                        masterImageFile = file;
+                        $('#masterFileName').text(file.name);
+                        const reader = new FileReader();
+                        reader.onload = function (event) {
+                            $('#masterImagePreview').css('background-image', 'url(' + event.target.result + ')');
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+
+                $('#updateImages').on('click', function () {
+                    if (tileImageFile) {
+                        const reader = new FileReader();
+                        reader.onload = function (event) {
+                            const img = new Image();
+                            img.onload = () => loadTileImageAsPlane(img);
+                            img.src = event.target.result;
+                        };
+                        reader.readAsDataURL(tileImageFile);
+                    } else {
+                        alert('Please select a tile image.');
+                    }
+
+                    if (masterImageFile) {
+                        const reader = new FileReader();
+                        reader.onload = function (event) {
+                            const img = new Image();
+                            img.onload = () => updateMasterImage(img);
+                            img.src = event.target.result;
+                        };
+                        reader.readAsDataURL(masterImageFile);
+                    } else {
+                        alert('Please select a master image.');
+                    }
+                });
+
+                $('#decimalPrecision').on('change', function () {
+                    decimalPrecision = parseInt($(this).val()) || 4;
+                    const step = '0.' + '0'.repeat(decimalPrecision - 1) + '1';
+                    $('#posX, #posY, #posZ, #rotX, #rotY, #rotZ, #scaleX, #scaleY, #scaleZ').attr('step', step);
+                    setTransformInputs(position, rotation, scale, opacity);
+                });
+
+                $('#exportData').on('click', function () {
+                    const exportData = {
+                        position: {
+                            x: position.x.toFixed(decimalPrecision),
+                            y: position.y.toFixed(decimalPrecision),
+                            z: position.z.toFixed(decimalPrecision),
+                        },
+                        rotation: {
+                            x: rotation.x.toFixed(decimalPrecision),
+                            y: rotation.y.toFixed(decimalPrecision),
+                            z: rotation.z.toFixed(decimalPrecision),
+                        },
+                        scale: {
+                            x: scale.x.toFixed(decimalPrecision),
+                            y: scale.y.toFixed(decimalPrecision),
+                            z: scale.z.toFixed(decimalPrecision),
+                        },
+                        opacity: opacity.toFixed(2),
+                        images: {
+                            tile: tileImageFile ? tileImageFile.name : 'none',
+                            master: masterImageFile ? masterImageFile.name : 'none',
+                        },
+                        timestamp: new Date().toISOString(),
+                    };
+
+                    const dataStr = JSON.stringify(exportData, null, 2);
+                    const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+                    const link = document.createElement('a');
+                    link.setAttribute('href', dataUri);
+                    link.setAttribute('download', 'coordinates.json');
+                    link.click();
+                });
+
+                $('#fullscreenToggle').on('click', function () {
+                    if (!document.fullscreenElement) {
+                        renderer.domElement.requestFullscreen().catch(err => {
+                            alert(`Error enabling fullscreen: ${err.message}`);
+                        });
+                    } else {
+                        document.exitFullscreen();
+                    }
+                });
+            }
+
+            setupControlListeners();
+            setTransformInputs(position, rotation, scale, opacity);
+
+            const zAxisGeometry = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(0, 0, 0),
+                new THREE.Vector3(0, 0, 5),
+            ]);
+            const zAxisMaterial = new THREE.LineBasicMaterial({ color: 0x0000ff });
+            const zAxisLine = new THREE.Line(zAxisGeometry, zAxisMaterial);
+            scene.add(zAxisLine);
+
+            function animate() {
+                requestAnimationFrame(animate);
+                renderer.render(scene, camera);
+            }
+            animate();
+        });
+    </script>
+</body>
+
+</html>
