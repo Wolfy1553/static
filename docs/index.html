@@ -374,6 +374,7 @@
             const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setClearColor(0xffffff, 0);
             renderer.setSize(canvasWidth, canvasHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
             document.body.appendChild(renderer.domElement);
 
             let tileMesh = null;
