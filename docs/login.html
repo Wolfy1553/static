@@ -11,6 +11,15 @@
     <link rel="icon" type="image/x-icon" href="favicon.ico">
   <meta name="google-signin-client_id" content="356348174750-lg85geqtpdmkca77lqba6pjk2aphl68t.apps.googleusercontent.com">
   <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-S6HYZJQK2V "></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){ dataLayer.push(arguments); }
+
+    gtag('js', new Date());
+    gtag('config', 'G-S6HYZJQK2V'); // Replace with your ID
+  </script>
+
   <style>
     body {
       margin: 0;
@@ -105,6 +114,9 @@
       sessionStorage.setItem('name', name);
       sessionStorage.setItem('email', email);
       sessionStorage.setItem('loginTime', loginTime);
+      gtag('event', 'login', {
+        method: 'Google'
+      });
 
       // Send login info to backend (IP will be captured server-side)
       fetch('https://user.wolfynext.com/api/login-success', {
