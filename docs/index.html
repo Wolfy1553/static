@@ -19,27 +19,64 @@
 
         canvas {
             display: block;
+            border-radius: 8px;
             background-color: white;
             margin-left: 250px;
             margin-top: 10px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
 
+        
+        #content{
+            position: absolute;
+            background: white;
+            padding: 8px 15px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.15);
+            width: 200px;
+            overflow: auto;
+            left: 9px;
+            height: 100px;
+
+        }
         #controls {
             position: absolute;
             left: 10px;
-            top: 50px;
+            top: 130px;
             background: white;
             padding: 15px;
             border-radius: 8px;
             box-shadow: 0 0 15px rgba(0, 0, 0, 0.15);
             width: 200px;
-            max-height: 90vh;
+            max-height: calc(100vh - 175px);
             overflow-y: auto;
             z-index: 100;
             transition: all 0.3s ease;
         }
-
+        #content p {
+            margin: 0px;
+            line-height: 1.6;
+            font-size: 12px;
+        }
+        #content button{
+            width: 100%;
+            padding: 5px 0px;
+        }
+        #username {
+            font-weight: bold;
+            color: #E66D22;
+            font-size: 15px;
+        }
+        
+        #useremail {
+            color: #7f8c8d;
+        }
+        
+        #logintime {
+            font-style: italic;
+            color: #95a5a6;
+        }
+        
         #controls.hidden {
             transform: translateX(-100%);
             opacity: 0;
@@ -91,7 +128,7 @@
         }
 
         button {
-            background: #4a6baf;
+            background: #E66D22;
             color: white;
             border: none;
             padding: 8px 12px;
@@ -124,14 +161,14 @@
         }
 
         #exportData {
-            background: #28a745;
+            background: #E66D22;
             width: 100%;
             padding: 10px;
-            margin-top: 15px;
+            margin-top: 0px;
         }
 
         #exportData:hover {
-            background: #218838;
+            background: #E66D22;
         }
 
         .image-selector {
@@ -175,7 +212,7 @@
         }
 
         .file-input-button {
-            background: #4a6baf;
+            background: #E66D22;
             color: white;
             border: none;
             padding: 8px 12px;
@@ -205,7 +242,7 @@
             left: 10px;
             top: 10px;
             z-index: 101;
-            background: #4a6baf;
+            background: #E66D22;
             color: white;
             border: none;
             padding: 8px 12px;
@@ -215,14 +252,14 @@
         }
 
         #fullscreenToggle {
-            position: fixed;
-            left: 10px;
-            top: 10px;
+            position: absolute;
+            right: 10px;
+            top: 0px;
             z-index: 101;
-            background: #4a6baf;
+            background: #E66D22;
             color: white;
             border: none;
-            padding: 8px 12px;
+            padding: 8px;
             border-radius: 4px;
             cursor: pointer;
             font-size: 13px;
@@ -243,9 +280,15 @@
 
 <body>
     <!-- <button id="toggleControls">Toggle Controls</button> -->
-    <button id="fullscreenToggle">Fullscreen</button>
-
+    
+    <div id="content">
+        <p>Welcome, <span id="username"></span></p>
+        <p>Email: <span id="useremail"></span></p>
+        <p>Login time: <span id="logintime"></span></p>
+        <button onclick="logout()">Logout</button>
+    </div>
     <div id="controls">
+        <button id="fullscreenToggle">Fullscreen</button>
         <div class="control-group">
             <h3>Image Selection</h3>
             <div class="image-selector">
@@ -357,6 +400,22 @@
 
         <button id="exportData">Export Coordinates</button>
     </div>
+    <script>
+        const isLoggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
+        if (!isLoggedIn) {
+          window.location.href = 'login.html';
+        } else {
+          document.getElementById('username').textContent = sessionStorage.getItem('name');
+          document.getElementById('useremail').textContent = sessionStorage.getItem('email');
+          document.getElementById('logintime').textContent = sessionStorage.getItem('loginTime');
+          document.getElementById('content').style.display = 'block';
+        }
+
+        function logout() {
+          sessionStorage.clear();
+          window.location.href = 'login.html';
+        }
+  </script>
     <script>
         $(document).ready(function () {
             const scene = new THREE.Scene();
