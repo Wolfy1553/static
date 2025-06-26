@@ -107,7 +107,7 @@
       sessionStorage.setItem('loginTime', loginTime);
 
       // Send login info to backend (IP will be captured server-side)
-      fetch('https://user.wolfynext.com//api/login-success', {
+      fetch('https://user.wolfynext.com/api/login-success', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, loginTime })
