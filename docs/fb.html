@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Connect Facebook Page</title>
+</head>
+<body>
+  <h2>Connect Your Facebook Page</h2>
+  <button onclick="loginWithFacebook()">Connect Page</button>
+
+  <script>
+    window.fbAsyncInit = function() {
+      FB.init({
+        appId      : '1058654739417835',
+        cookie     : true,
+        xfbml      : true,
+        version    : 'v19.0'
+      });
+    };
+
+    (function(d, s, id){
+      var js, fjs = d.getElementsByTagName(s)[0];
+      if (d.getElementById(id)) return;
+      js = d.createElement(s); js.id = id;
+      js.src = "https://connect.facebook.net/en_US/sdk.js";
+      fjs.parentNode.insertBefore(js, fjs);
+    }(document, 'script', 'facebook-jssdk'));
+
+    function loginWithFacebook() {
+      FB.login(function(response) {
+        if (response.authResponse) {
+          FB.api('/me/accounts', function(response) {
+            if (response.data && response.data.length > 0) {
+              // You can show a list of pages to let the user pick one
+              const page = response.data[0]; // You can improve UI to allow selection
+              const pageAccessToken = page.access_token;
+              const pageId = page.id;
+
+              // Save token + page info to your server
+              fetch('/save-page-token', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  pageId: pageId,
+                  pageAccessToken: pageAccessToken
+                })
+              }).then(res => res.json()).then(data => {
+                alert('Page connected: ' + page);
+              });
+            } else {
+              alert('No pages found or permissions missing.');
+            }
+          });
+        } else {
+          alert('Facebook login failed or cancelled.');
+        }
+      }, {
+        scope: 'pages_manage_posts,pages_read_engagement,pages_show_list'
+      });
+    }
+  </script>
+</body>
+</html>
