@@ -413,7 +413,7 @@
     <script>
         const isLoggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
         if (!isLoggedIn) {
-          window.location.href = 'login.html';
+          window.location.href = 'login';
         } else {
           document.body.style.display = 'block';
           document.getElementById('username').textContent = sessionStorage.getItem('name');
@@ -424,7 +424,7 @@
 
         function logout() {
           sessionStorage.clear();
-          window.location.href = 'login.html';
+          window.location.href = 'login';
         }
   </script>
     <script>
