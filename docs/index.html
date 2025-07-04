@@ -452,6 +452,8 @@
             let decimalPrecision = 4;
             let tileImageFile = null;
             let masterImageFile = null;
+            let visibleHeight2 = 2 * Math.tan((camera.fov * Math.PI) / 360) * camera.position.z;
+            let visibleWidth2 = visibleHeight2 * camera.aspect;
 
             const position = new THREE.Vector3(0, 0, 0);
             const rotation = new THREE.Euler(0, 0, 0);
@@ -468,10 +470,10 @@
                 texture.minFilter = THREE.NearestFilter;
                 texture.magFilter = THREE.NearestFilter;
 
-                const visibleHeight = 2 * Math.tan((camera.fov * Math.PI) / 360) * camera.position.z;
-                const visibleWidth = visibleHeight * camera.aspect;
+                // const visibleHeight = 2 * Math.tan((camera.fov * Math.PI) / 360) * camera.position.z;
+                // const visibleWidth = visibleHeight * camera.aspect;
 
-                const geometry = new THREE.PlaneGeometry(visibleWidth, visibleHeight);
+                const geometry = new THREE.PlaneGeometry(visibleWidth2, visibleHeight2);
                 const material = new THREE.MeshBasicMaterial({
                     map: texture,
                     transparent: true,
@@ -602,6 +604,38 @@
                     } else {
                         alert('Please select a master image.');
                     }
+                });
+
+
+                $('#updateDimensions').on('click', function () {
+                    const _width = parseFloat($('#gridWidth').val());
+                    const _height = parseFloat($('#gridHeight').val());
+                    const fov = 75;
+                    const cameraZ = 5;
+                   const _aspect = _width / _height;
+                   const halfFovRadians = (fov * Math.PI) / 360;
+                   visibleHeight2 = 2 * Math.tan(halfFovRadians) * cameraZ;
+                   visibleWidth2 = visibleHeight2 * _aspect;
+
+                    if (tileImageFile) {
+                        const reader = new FileReader();
+                        reader.onload = function (event) {
+                            const img = new Image();
+                            img.onload = () => loadTileImageAsPlane(img);
+                            img.src = event.target.result;
+                        };
+                        reader.readAsDataURL(tileImageFile);
+                    }
+
+                    if (masterImageFile) {
+                        const reader = new FileReader();
+                        reader.onload = function (event) {
+                            const img = new Image();
+                            img.onload = () => updateMasterImage(img);
+                            img.src = event.target.result;
+                        };
+                        reader.readAsDataURL(masterImageFile);
+                    } 
                 });
 
                 $('#decimalPrecision').on('change', function () {
