@@ -410,10 +410,34 @@
 
         <button id="exportData">Export Coordinates</button>
     </div>
+    <div id="cameraConfigModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,1); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+        <div style="background: #fff; padding: 20px 30px; border-radius: 10px; width: 300px;" class="control-group">
+            <h3>Camera Settings</h3>
+            <div class="control-row">
+                <label>FOV: </label> 
+                <input id="fovInput" type="number" value="75" step="1" style="width: 60px; margin-left: 50px;" />
+            </div>
+            <div class="control-row">
+                <label>Near: </label>
+                <input id="nearInput" type="number" value="0.1" step="0.1" style="width: 60px; margin-left: 50px;" />
+            </div>
+            <div class="control-row">
+                <label>Far: </label>
+                <input id="farInput" type="number" value="1000" step="10" style="width: 60px; margin-left: 50px;" />
+            </div>
+            <div class="control-row">
+                <label>Camera Z: </label>
+                <input id="cameraZInput" type="number" value="5" step="0.1" style="width: 60px; margin-left: 50px;" />
+            </div>
+            <button id="startThreeJS">Start</button>
+        </div>
+    </div>
+
     <script>
         const isLoggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
         if (!isLoggedIn) {
           window.location.href = 'login';
+           // document.body.style.display = 'block';
         } else {
           document.body.style.display = 'block';
           document.getElementById('username').textContent = sessionStorage.getItem('name');
@@ -429,282 +453,301 @@
   </script>
     <script>
         $(document).ready(function () {
-            const scene = new THREE.Scene();
-            scene.background = new THREE.Color(0xffffff);
+            // const defaultFOV = parseFloat(prompt("Enter Field of View (default: 75)", "75")) || 75;
+            // const defaultNear = parseFloat(prompt("Enter Near Clipping Plane (default: 0.1)", "0.1")) || 0.1;
+            // const defaultFar = parseFloat(prompt("Enter Far Clipping Plane (default: 1000)", "1000")) || 1000;
+            // const defaultCameraZ = parseFloat(prompt("Enter Camera Z Position (default: 5)", "5")) || 5;
+            $('#startThreeJS').on('click', function () {
+                // Get user input values
+                const defaultFOV = parseFloat($('#fovInput').val()) || 75;
+                const defaultNear = parseFloat($('#nearInput').val()) || 0.1;
+                const defaultFar = parseFloat($('#farInput').val()) || 1000;
+                const defaultCameraZ = parseFloat($('#cameraZInput').val()) || 5;
 
-            const Width = 4000;
-            const Height = 2667;
-            const aspectRatio = Width / Height;
-            const canvasWidth = window.innerWidth * 0.8;
-            const canvasHeight = canvasWidth / aspectRatio;
+                // Hide modal
+                $('#cameraConfigModal').hide();
 
-            const camera = new THREE.PerspectiveCamera(75, canvasWidth / canvasHeight, 0.1, 1000);
-            camera.position.z = 5;
+                // Initialize Three.js
+                initThree(defaultFOV, defaultNear, defaultFar, defaultCameraZ);
+            });
+            function initThree(defaultFOV, defaultNear, defaultFar, defaultCameraZ) {
+                const scene = new THREE.Scene();
+                scene.background = new THREE.Color(0xffffff);
 
-            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            renderer.setClearColor(0xffffff, 0);
-            renderer.setSize(canvasWidth, canvasHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
-            document.body.appendChild(renderer.domElement);
+                const Width = 4000;
+                const Height = 2667;
+                const aspectRatio = Width / Height;
+                const canvasWidth = window.innerWidth * 0.8;
+                const canvasHeight = canvasWidth / aspectRatio;
 
-            let tileMesh = null;
-            let textureLayer = null;
-            let decimalPrecision = 4;
-            let tileImageFile = null;
-            let masterImageFile = null;
-            let visibleHeight2 = 2 * Math.tan((camera.fov * Math.PI) / 360) * camera.position.z;
-            let visibleWidth2 = visibleHeight2 * camera.aspect;
+                const camera = new THREE.PerspectiveCamera(defaultFOV, canvasWidth / canvasHeight, defaultNear, defaultFar);
+                camera.position.z = defaultCameraZ;
 
-            const position = new THREE.Vector3(0, 0, 0);
-            const rotation = new THREE.Euler(0, 0, 0);
-            const scale = new THREE.Vector3(1, 1, 1);
-            let opacity = 1;
+                const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                renderer.setClearColor(0xffffff, 0);
+                renderer.setSize(canvasWidth, canvasHeight);
+                renderer.setPixelRatio(window.devicePixelRatio);
+                document.body.appendChild(renderer.domElement);
 
-            function loadTileImageAsPlane(image) {
-                if (tileMesh) scene.remove(tileMesh);
+                let tileMesh = null;
+                let textureLayer = null;
+                let decimalPrecision = 4;
+                let tileImageFile = null;
+                let masterImageFile = null;
+                let visibleHeight2 = 2 * Math.tan((camera.fov * Math.PI) / 360) * camera.position.z;
+                let visibleWidth2 = visibleHeight2 * camera.aspect;
 
-                const texture = new THREE.Texture(image);
-                texture.colorSpace = THREE.SRGBColorSpace;
-                texture.generateMipmaps = true;
-                texture.needsUpdate = true;
-                texture.minFilter = THREE.NearestFilter;
-                texture.magFilter = THREE.NearestFilter;
+                const position = new THREE.Vector3(0, 0, 0);
+                const rotation = new THREE.Euler(0, 0, 0);
+                const scale = new THREE.Vector3(1, 1, 1);
+                let opacity = 1;
 
-                // const visibleHeight = 2 * Math.tan((camera.fov * Math.PI) / 360) * camera.position.z;
-                // const visibleWidth = visibleHeight * camera.aspect;
+                function loadTileImageAsPlane(image) {
+                    if (tileMesh) scene.remove(tileMesh);
 
-                const geometry = new THREE.PlaneGeometry(visibleWidth2, visibleHeight2);
-                const material = new THREE.MeshBasicMaterial({
-                    map: texture,
-                    transparent: true,
-                    opacity,
-                    side: THREE.DoubleSide,
-                });
+                    const texture = new THREE.Texture(image);
+                    texture.colorSpace = THREE.SRGBColorSpace;
+                    texture.generateMipmaps = true;
+                    texture.needsUpdate = true;
+                    texture.minFilter = THREE.NearestFilter;
+                    texture.magFilter = THREE.NearestFilter;
 
-                tileMesh = new THREE.Mesh(geometry, material);
-                applyTransformations();
-                scene.add(tileMesh);
-            }
+                    // const visibleHeight = 2 * Math.tan((camera.fov * Math.PI) / 360) * camera.position.z;
+                    // const visibleWidth = visibleHeight * camera.aspect;
 
-            function updateMasterImage(imageData) {
-                if (textureLayer) scene.remove(textureLayer);
+                    const geometry = new THREE.PlaneGeometry(visibleWidth2, visibleHeight2);
+                    const material = new THREE.MeshBasicMaterial({
+                        map: texture,
+                        transparent: true,
+                        opacity,
+                        side: THREE.DoubleSide,
+                    });
 
-                const texture = new THREE.Texture(imageData);
-                texture.colorSpace = THREE.SRGBColorSpace;
-                texture.needsUpdate = true;
-                const visibleHeight = 2 * Math.tan((camera.fov * Math.PI) / 360) * camera.position.z;
-                const visibleWidth = visibleHeight * camera.aspect;
-
-                const textureGeometry = new THREE.PlaneGeometry(visibleWidth, visibleHeight);
-                const textureMaterial = new THREE.MeshBasicMaterial({
-                    map: texture,
-                    transparent: true,
-                    opacity,
-                    side: THREE.DoubleSide,
-                });
-
-                textureLayer = new THREE.Mesh(textureGeometry, textureMaterial);
-                scene.add(textureLayer);
-            }
-
-            function applyTransformations() {
-                if (tileMesh) {
-                    tileMesh.position.copy(position);
-                    tileMesh.rotation.copy(rotation);
-                    tileMesh.scale.copy(scale);
-                }
-                if (textureLayer) {
-                    textureLayer.material.opacity = opacity;
-                }
-            }
-
-            function setTransformInputs(position, rotation, scale, opacity) {
-                $('#posX').val(position.x.toFixed(decimalPrecision));
-                $('#posY').val(position.y.toFixed(decimalPrecision));
-                $('#posZ').val(position.z.toFixed(decimalPrecision));
-                $('#rotX').val(rotation.x.toFixed(decimalPrecision));
-                $('#rotY').val(rotation.y.toFixed(decimalPrecision));
-                $('#rotZ').val(rotation.z.toFixed(decimalPrecision));
-                $('#scaleX').val(scale.x.toFixed(decimalPrecision));
-                $('#scaleY').val(scale.y.toFixed(decimalPrecision));
-                $('#scaleZ').val(scale.z.toFixed(decimalPrecision));
-                $('#opacity').val(opacity.toFixed(2));
-            }
-
-            function setupControlListeners() {
-                $('#posX, #posY, #posZ, #rotX, #rotY, #rotZ, #scaleX, #scaleY, #scaleZ').on('input change', function () {
-                    position.x = parseFloat($('#posX').val()) || 0;
-                    position.y = parseFloat($('#posY').val()) || 0;
-                    position.z = parseFloat($('#posZ').val()) || 0;
-
-                    rotation.x = parseFloat($('#rotX').val()) || 0;
-                    rotation.y = parseFloat($('#rotY').val()) || 0;
-                    rotation.z = parseFloat($('#rotZ').val()) || 0;
-
-                    scale.x = parseFloat($('#scaleX').val()) || 1;
-                    scale.y = parseFloat($('#scaleY').val()) || 1;
-                    scale.z = parseFloat($('#scaleZ').val()) || 1;
-
+                    tileMesh = new THREE.Mesh(geometry, material);
                     applyTransformations();
-                });
+                    scene.add(tileMesh);
+                }
 
-                $('#opacity').on('input change', function () {
-                    opacity = parseFloat($(this).val()) || 1;
-                    opacity = Math.max(0, Math.min(1, opacity));
-                    applyTransformations();
-                });
+                function updateMasterImage(imageData) {
+                    if (textureLayer) scene.remove(textureLayer);
 
-                $('#tileImageInput').on('change', function (e) {
-                    const file = e.target.files[0];
-                    if (file) {
-                        tileImageFile = file;
-                        $('#tileFileName').text(file.name);
-                        const reader = new FileReader();
-                        reader.onload = function (event) {
-                            $('#tileImagePreview').css('background-image', 'url(' + event.target.result + ')');
-                        };
-                        reader.readAsDataURL(file);
+                    const texture = new THREE.Texture(imageData);
+                    texture.colorSpace = THREE.SRGBColorSpace;
+                    texture.needsUpdate = true;
+                    const visibleHeight = 2 * Math.tan((camera.fov * Math.PI) / 360) * camera.position.z;
+                    const visibleWidth = visibleHeight * camera.aspect;
+
+                    const textureGeometry = new THREE.PlaneGeometry(visibleWidth, visibleHeight);
+                    const textureMaterial = new THREE.MeshBasicMaterial({
+                        map: texture,
+                        transparent: true,
+                        opacity,
+                        side: THREE.DoubleSide,
+                    });
+
+                    textureLayer = new THREE.Mesh(textureGeometry, textureMaterial);
+                    scene.add(textureLayer);
+                }
+
+                function applyTransformations() {
+                    if (tileMesh) {
+                        tileMesh.position.copy(position);
+                        tileMesh.rotation.copy(rotation);
+                        tileMesh.scale.copy(scale);
                     }
-                });
-
-                $('#masterImageInput').on('change', function (e) {
-                    const file = e.target.files[0];
-                    if (file) {
-                        masterImageFile = file;
-                        $('#masterFileName').text(file.name);
-                        const reader = new FileReader();
-                        reader.onload = function (event) {
-                            $('#masterImagePreview').css('background-image', 'url(' + event.target.result + ')');
-                        };
-                        reader.readAsDataURL(file);
+                    if (textureLayer) {
+                        textureLayer.material.opacity = opacity;
                     }
-                });
+                }
 
-                $('#updateImages').on('click', function () {
-                    if (tileImageFile) {
-                        const reader = new FileReader();
-                        reader.onload = function (event) {
-                            const img = new Image();
-                            img.onload = () => loadTileImageAsPlane(img);
-                            img.src = event.target.result;
+                function setTransformInputs(position, rotation, scale, opacity) {
+                    $('#posX').val(position.x.toFixed(decimalPrecision));
+                    $('#posY').val(position.y.toFixed(decimalPrecision));
+                    $('#posZ').val(position.z.toFixed(decimalPrecision));
+                    $('#rotX').val(rotation.x.toFixed(decimalPrecision));
+                    $('#rotY').val(rotation.y.toFixed(decimalPrecision));
+                    $('#rotZ').val(rotation.z.toFixed(decimalPrecision));
+                    $('#scaleX').val(scale.x.toFixed(decimalPrecision));
+                    $('#scaleY').val(scale.y.toFixed(decimalPrecision));
+                    $('#scaleZ').val(scale.z.toFixed(decimalPrecision));
+                    $('#opacity').val(opacity.toFixed(2));
+                }
+
+                function setupControlListeners() {
+                    $('#posX, #posY, #posZ, #rotX, #rotY, #rotZ, #scaleX, #scaleY, #scaleZ').on('input change', function () {
+                        position.x = parseFloat($('#posX').val()) || 0;
+                        position.y = parseFloat($('#posY').val()) || 0;
+                        position.z = parseFloat($('#posZ').val()) || 0;
+
+                        rotation.x = parseFloat($('#rotX').val()) || 0;
+                        rotation.y = parseFloat($('#rotY').val()) || 0;
+                        rotation.z = parseFloat($('#rotZ').val()) || 0;
+
+                        scale.x = parseFloat($('#scaleX').val()) || 1;
+                        scale.y = parseFloat($('#scaleY').val()) || 1;
+                        scale.z = parseFloat($('#scaleZ').val()) || 1;
+
+                        applyTransformations();
+                    });
+
+                    $('#opacity').on('input change', function () {
+                        opacity = parseFloat($(this).val()) || 1;
+                        opacity = Math.max(0, Math.min(1, opacity));
+                        applyTransformations();
+                    });
+
+                    $('#tileImageInput').on('change', function (e) {
+                        const file = e.target.files[0];
+                        if (file) {
+                            tileImageFile = file;
+                            $('#tileFileName').text(file.name);
+                            const reader = new FileReader();
+                            reader.onload = function (event) {
+                                $('#tileImagePreview').css('background-image', 'url(' + event.target.result + ')');
+                            };
+                            reader.readAsDataURL(file);
+                        }
+                    });
+
+                    $('#masterImageInput').on('change', function (e) {
+                        const file = e.target.files[0];
+                        if (file) {
+                            masterImageFile = file;
+                            $('#masterFileName').text(file.name);
+                            const reader = new FileReader();
+                            reader.onload = function (event) {
+                                $('#masterImagePreview').css('background-image', 'url(' + event.target.result + ')');
+                            };
+                            reader.readAsDataURL(file);
+                        }
+                    });
+
+                    $('#updateImages').on('click', function () {
+                        if (tileImageFile) {
+                            const reader = new FileReader();
+                            reader.onload = function (event) {
+                                const img = new Image();
+                                img.onload = () => loadTileImageAsPlane(img);
+                                img.src = event.target.result;
+                            };
+                            reader.readAsDataURL(tileImageFile);
+                        } else {
+                            alert('Please select a tile image.');
+                        }
+
+                        if (masterImageFile) {
+                            const reader = new FileReader();
+                            reader.onload = function (event) {
+                                const img = new Image();
+                                img.onload = () => updateMasterImage(img);
+                                img.src = event.target.result;
+                            };
+                            reader.readAsDataURL(masterImageFile);
+                        } else {
+                            alert('Please select a master image.');
+                        }
+                    });
+
+
+                    $('#updateDimensions').on('click', function () {
+                        const _width = parseFloat($('#gridWidth').val());
+                        const _height = parseFloat($('#gridHeight').val());
+                        const fov = 75;
+                        const cameraZ = 5;
+                       const _aspect = _width / _height;
+                       const halfFovRadians = (fov * Math.PI) / 360;
+                       visibleHeight2 = 2 * Math.tan(halfFovRadians) * cameraZ;
+                       visibleWidth2 = visibleHeight2 * _aspect;
+
+                        if (tileImageFile) {
+                            const reader = new FileReader();
+                            reader.onload = function (event) {
+                                const img = new Image();
+                                img.onload = () => loadTileImageAsPlane(img);
+                                img.src = event.target.result;
+                            };
+                            reader.readAsDataURL(tileImageFile);
+                        }
+
+                        if (masterImageFile) {
+                            const reader = new FileReader();
+                            reader.onload = function (event) {
+                                const img = new Image();
+                                img.onload = () => updateMasterImage(img);
+                                img.src = event.target.result;
+                            };
+                            reader.readAsDataURL(masterImageFile);
+                        } 
+                    });
+
+                    $('#decimalPrecision').on('change', function () {
+                        decimalPrecision = parseInt($(this).val()) || 4;
+                        const step = '0.' + '0'.repeat(decimalPrecision - 1) + '1';
+                        $('#posX, #posY, #posZ, #rotX, #rotY, #rotZ, #scaleX, #scaleY, #scaleZ').attr('step', step);
+                        setTransformInputs(position, rotation, scale, opacity);
+                    });
+
+                    $('#exportData').on('click', function () {
+                        const exportData = {
+                            position: {
+                                x: position.x.toFixed(decimalPrecision),
+                                y: position.y.toFixed(decimalPrecision),
+                                z: position.z.toFixed(decimalPrecision),
+                            },
+                            rotation: {
+                                x: rotation.x.toFixed(decimalPrecision),
+                                y: rotation.y.toFixed(decimalPrecision),
+                                z: rotation.z.toFixed(decimalPrecision),
+                            },
+                            scale: {
+                                x: scale.x.toFixed(decimalPrecision),
+                                y: scale.y.toFixed(decimalPrecision),
+                                z: scale.z.toFixed(decimalPrecision),
+                            },
+                            opacity: opacity.toFixed(2),
+                            images: {
+                                tile: tileImageFile ? tileImageFile.name : 'none',
+                                master: masterImageFile ? masterImageFile.name : 'none',
+                            },
+                            timestamp: new Date().toISOString(),
                         };
-                        reader.readAsDataURL(tileImageFile);
-                    } else {
-                        alert('Please select a tile image.');
-                    }
 
-                    if (masterImageFile) {
-                        const reader = new FileReader();
-                        reader.onload = function (event) {
-                            const img = new Image();
-                            img.onload = () => updateMasterImage(img);
-                            img.src = event.target.result;
-                        };
-                        reader.readAsDataURL(masterImageFile);
-                    } else {
-                        alert('Please select a master image.');
-                    }
-                });
+                        const dataStr = JSON.stringify(exportData, null, 2);
+                        const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+                        const link = document.createElement('a');
+                        link.setAttribute('href', dataUri);
+                        link.setAttribute('download', 'coordinates.json');
+                        link.click();
+                    });
 
+                    $('#fullscreenToggle').on('click', function () {
+                        if (!document.fullscreenElement) {
+                            renderer.domElement.requestFullscreen().catch(err => {
+                                alert(`Error enabling fullscreen: ${err.message}`);
+                            });
+                        } else {
+                            document.exitFullscreen();
+                        }
+                    });
+                }
 
-                $('#updateDimensions').on('click', function () {
-                    const _width = parseFloat($('#gridWidth').val());
-                    const _height = parseFloat($('#gridHeight').val());
-                    const fov = 75;
-                    const cameraZ = 5;
-                   const _aspect = _width / _height;
-                   const halfFovRadians = (fov * Math.PI) / 360;
-                   visibleHeight2 = 2 * Math.tan(halfFovRadians) * cameraZ;
-                   visibleWidth2 = visibleHeight2 * _aspect;
+                setupControlListeners();
+                setTransformInputs(position, rotation, scale, opacity);
 
-                    if (tileImageFile) {
-                        const reader = new FileReader();
-                        reader.onload = function (event) {
-                            const img = new Image();
-                            img.onload = () => loadTileImageAsPlane(img);
-                            img.src = event.target.result;
-                        };
-                        reader.readAsDataURL(tileImageFile);
-                    }
+                const zAxisGeometry = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(0, 0, 0),
+                    new THREE.Vector3(0, 0, 5),
+                ]);
+                const zAxisMaterial = new THREE.LineBasicMaterial({ color: 0x0000ff });
+                const zAxisLine = new THREE.Line(zAxisGeometry, zAxisMaterial);
+                scene.add(zAxisLine);
 
-                    if (masterImageFile) {
-                        const reader = new FileReader();
-                        reader.onload = function (event) {
-                            const img = new Image();
-                            img.onload = () => updateMasterImage(img);
-                            img.src = event.target.result;
-                        };
-                        reader.readAsDataURL(masterImageFile);
-                    } 
-                });
-
-                $('#decimalPrecision').on('change', function () {
-                    decimalPrecision = parseInt($(this).val()) || 4;
-                    const step = '0.' + '0'.repeat(decimalPrecision - 1) + '1';
-                    $('#posX, #posY, #posZ, #rotX, #rotY, #rotZ, #scaleX, #scaleY, #scaleZ').attr('step', step);
-                    setTransformInputs(position, rotation, scale, opacity);
-                });
-
-                $('#exportData').on('click', function () {
-                    const exportData = {
-                        position: {
-                            x: position.x.toFixed(decimalPrecision),
-                            y: position.y.toFixed(decimalPrecision),
-                            z: position.z.toFixed(decimalPrecision),
-                        },
-                        rotation: {
-                            x: rotation.x.toFixed(decimalPrecision),
-                            y: rotation.y.toFixed(decimalPrecision),
-                            z: rotation.z.toFixed(decimalPrecision),
-                        },
-                        scale: {
-                            x: scale.x.toFixed(decimalPrecision),
-                            y: scale.y.toFixed(decimalPrecision),
-                            z: scale.z.toFixed(decimalPrecision),
-                        },
-                        opacity: opacity.toFixed(2),
-                        images: {
-                            tile: tileImageFile ? tileImageFile.name : 'none',
-                            master: masterImageFile ? masterImageFile.name : 'none',
-                        },
-                        timestamp: new Date().toISOString(),
-                    };
-
-                    const dataStr = JSON.stringify(exportData, null, 2);
-                    const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
-                    const link = document.createElement('a');
-                    link.setAttribute('href', dataUri);
-                    link.setAttribute('download', 'coordinates.json');
-                    link.click();
-                });
-
-                $('#fullscreenToggle').on('click', function () {
-                    if (!document.fullscreenElement) {
-                        renderer.domElement.requestFullscreen().catch(err => {
-                            alert(`Error enabling fullscreen: ${err.message}`);
-                        });
-                    } else {
-                        document.exitFullscreen();
-                    }
-                });
+                function animate() {
+                    requestAnimationFrame(animate);
+                    renderer.render(scene, camera);
+                }
+                animate();
             }
-
-            setupControlListeners();
-            setTransformInputs(position, rotation, scale, opacity);
-
-            const zAxisGeometry = new THREE.BufferGeometry().setFromPoints([
-                new THREE.Vector3(0, 0, 0),
-                new THREE.Vector3(0, 0, 5),
-            ]);
-            const zAxisMaterial = new THREE.LineBasicMaterial({ color: 0x0000ff });
-            const zAxisLine = new THREE.Line(zAxisGeometry, zAxisMaterial);
-            scene.add(zAxisLine);
-
-            function animate() {
-                requestAnimationFrame(animate);
-                renderer.render(scene, camera);
-            }
-            animate();
         });
     </script>
 </body>
